@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset password - Poojai Tracker Pro</title>
+<style>
+  :root { --maroon:#4a0e17; --red:#8b0000; --gold:#f6d04d; --cream:#fffdf8; --line:#e3cf8f; --text:#2a0d12; --muted:#6d5d52; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:var(--maroon); font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Tamil", "Nirmala UI", Latha, Arial, sans-serif; color:var(--text); display:flex; align-items:center; justify-content:center; padding:20px 14px; }
+  .wrap { width:100%; max-width:420px; }
+  .brand { text-align:center; color:var(--gold); margin-bottom:16px; }
+  .brand .om { font-size:40px; line-height:1; }
+  .brand h1 { margin:6px 0 0; font-size:22px; }
+  .card { background:var(--cream); border:1.5px solid var(--gold); border-radius:18px; padding:22px 20px; }
+  h2 { margin:0 0 4px; font-size:19px; color:var(--maroon); text-align:center; }
+  .sub { margin:0 0 18px; text-align:center; color:var(--muted); font-size:14px; }
+  label { display:block; font-weight:700; font-size:14px; margin:12px 0 6px; }
+  .field { position:relative; }
+  input { width:100%; padding:12px 44px 12px 12px; border:1px solid var(--line); border-radius:10px; font-size:16px; background:#fff; color:var(--text); }
+  input:focus { outline:2px solid var(--gold); border-color:var(--red); }
+  .eye { position:absolute; right:6px; top:50%; transform:translateY(-50%); border:0; background:none; font-size:13px; font-weight:700; color:var(--red); padding:8px; cursor:pointer; }
+  button.main { width:100%; margin-top:20px; padding:13px; border:0; border-radius:26px; background:var(--red); color:#fff; font-size:16px; font-weight:800; cursor:pointer; }
+  button.main:disabled { opacity:.6; cursor:default; }
+  .msg { margin:14px 0 0; padding:10px 12px; border-radius:10px; font-size:14px; display:none; }
+  .msg.show { display:block; background:#fde8e8; color:#9b1c1c; border:1px solid #f4b4b4; }
+  .done { text-align:center; display:none; }
+  .done .tick { width:54px; height:54px; border-radius:50%; background:#e3f6e8; color:#1e7a3c; font-size:30px; line-height:54px; margin:0 auto 10px; font-weight:800; }
+  .done p { margin:6px 0; font-size:15px; }
+  .ta { color:var(--muted); font-size:13.5px; }
+  .hint { margin-top:6px; font-size:12.5px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><div class="om">&#x950;</div><h1>Poojai Tracker Pro</h1></div>
+  <div class="card">
+    <form id="form" novalidate>
+      <h2>Set a new password</h2>
+      <p class="sub">புதிய கடவுச்சொல்லை அமைக்கவும்</p>
+
+      <label for="pw">New password <span class="ta">/ புதிய கடவுச்சொல்</span></label>
+      <div class="field"><input id="pw" type="password" autocomplete="new-password" placeholder="At least 6 characters"><button type="button" class="eye" data-for="pw">Show</button></div>
+
+      <label for="pw2">Re-enter new password <span class="ta">/ மீண்டும் உள்ளிடவும்</span></label>
+      <div class="field"><input id="pw2" type="password" autocomplete="new-password" placeholder="Type it again"><button type="button" class="eye" data-for="pw2">Show</button></div>
+
+      <div id="err" class="msg" role="alert"></div>
+      <button id="save" class="main" type="submit">Save new password / சேமி</button>
+      <p class="hint">After saving, open the Poojai Tracker Pro app and log in with your email and this new password.</p>
+    </form>
+
+    <div id="done" class="done">
+      <div class="tick">&#10003;</div>
+      <h2>Password changed</h2>
+      <p>Your password has been changed. Open the <b>Poojai Tracker Pro</b> app and log in with your email and the new password.</p>
+      <p class="ta">கடவுச்சொல் மாற்றப்பட்டது. <b>Poojai Tracker Pro</b> செயலியைத் திறந்து உங்கள் மின்னஞ்சல் மற்றும் புதிய கடவுச்சொல்லுடன் உள்நுழையவும்.</p>
+    </div>
+  </div>
+</div>
+
+<script src="supabase.js"></script>
+<script>
+(function () {
+  var SUPABASE_URL = 'https://etrektjhciqtzxeldaif.supabase.co';
+  var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0cmVrdGpoY2lxdHp4ZWxkYWlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTc3OTQsImV4cCI6MjEwODA5Mzc5NH0.SevmGrIHqLBNowduSptH_CMpGjA8Nn-4Wl2J31A9iGQ'; // the public "anon" key: the same one the app carries; data is protected by row level security
+
+  var params = new URLSearchParams(location.search);
+  var tokenHash = params.get('token_hash');
+  var type = params.get('type') || 'recovery';
+
+  var form = document.getElementById('form');
+  var errBox = document.getElementById('err');
+  var saveBtn = document.getElementById('save');
+  var pw = document.getElementById('pw');
+  var pw2 = document.getElementById('pw2');
+
+  function showError(en, ta) {
+    errBox.innerHTML = en + (ta ? '<br><span class="ta">' + ta + '</span>' : '');
+    errBox.className = 'msg show';
+  }
+
+  document.querySelectorAll('.eye').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var input = document.getElementById(b.getAttribute('data-for'));
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      b.textContent = show ? 'Hide' : 'Show';
+    });
+  });
+
+  if (!tokenHash) {
+    showError('This link is not valid. Please ask for a new reset email from the app.', 'இந்த இணைப்பு செல்லாது. செயலியில் புதிய மின்னஞ்சலைக் கேளுங்கள்.');
+    saveBtn.disabled = true;
+  }
+
+  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    errBox.className = 'msg';
+    if (!tokenHash) return;
+    if (pw.value.length < 6) {
+      return showError('The password must have at least 6 characters.', 'கடவுச்சொல் குறைந்தது 6 எழுத்துகள் இருக்க வேண்டும்.');
+    }
+    if (pw.value !== pw2.value) {
+      return showError('The two passwords do not match.', 'இரண்டு கடவுச்சொற்களும் பொருந்தவில்லை.');
+    }
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving... / சேமிக்கிறது...';
+    try {
+      // The link is used up only now, when the person presses Save (not when the page opens)
+      var verified = await client.auth.verifyOtp({ token_hash: tokenHash, type: type });
+      if (verified.error) throw { expired: true, error: verified.error };
+      var updated = await client.auth.updateUser({ password: pw.value });
+      if (updated.error) throw { error: updated.error };
+      await client.auth.signOut();
+      form.style.display = 'none';
+      document.getElementById('done').style.display = 'block';
+    } catch (ex) {
+      var msg = (ex && ex.error && ex.error.message) || '';
+      if (ex && ex.expired) {
+        showError('This link has expired or was already used. Please ask for a new reset email from the app.', 'இந்த இணைப்பு காலாவதியானது அல்லது ஏற்கனவே பயன்படுத்தப்பட்டது. செயலியில் புதிய மின்னஞ்சலைக் கேளுங்கள்.');
+      } else if (/same|different/i.test(msg)) {
+        showError('The new password must be different from the old one.', 'புதிய கடவுச்சொல் பழையதிலிருந்து வேறுபட வேண்டும்.');
+      } else {
+        showError('Could not save the password. ' + msg, 'கடவுச்சொல்லை சேமிக்க முடியவில்லை.');
+      }
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save new password / சேமி';
+    }
+  });
+})();
+</script>
+</body>
+</html>
