@@ -70,9 +70,15 @@
   var SUPABASE_URL = 'https://etrektjhciqtzxeldaif.supabase.co';
   var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0cmVrdGpoY2lxdHp4ZWxkYWlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTc3OTQsImV4cCI6MjEwODA5Mzc5NH0.SevmGrIHqLBNowduSptH_CMpGjA8Nn-4Wl2J31A9iGQ'; // the public "anon" key: the same one the app carries; data is protected by row level security
 
+  // Two kinds of link open this page: ?token_hash=... (the branded email) and #access_token=... (Supabase's default email)
   var params = new URLSearchParams(location.search);
+  var hash = new URLSearchParams(location.hash.replace(/^#/, ''));
   var tokenHash = params.get('token_hash');
-  var type = params.get('type') || 'recovery';
+  var type = params.get('type') || hash.get('type') || 'recovery';
+  var accessToken = hash.get('access_token');
+  var refreshToken = hash.get('refresh_token');
+  var linkError = hash.get('error') || params.get('error');
+  var hasLink = !!(tokenHash || accessToken) && !linkError;
 
   var form = document.getElementById('form');
   var errBox = document.getElementById('err');
@@ -94,7 +100,7 @@
     });
   });
 
-  if (!tokenHash) {
+  if (!hasLink) {
     form.style.display = 'none';
     var bad = document.getElementById('bad');
     bad.style.display = 'block';
@@ -107,7 +113,7 @@
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     errBox.className = 'msg';
-    if (!tokenHash) return;
+    if (!hasLink) return;
     if (pw.value.length < 6) {
       return showError('The password must have at least 6 characters.');
     }
@@ -118,7 +124,9 @@
     saveBtn.textContent = 'Saving...';
     try {
       // The link is used up only now, when the person presses Save (not when the page opens)
-      var verified = await client.auth.verifyOtp({ token_hash: tokenHash, type: type });
+      var verified = tokenHash
+        ? await client.auth.verifyOtp({ token_hash: tokenHash, type: type })
+        : await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || '' });
       if (verified.error) throw { expired: true, error: verified.error };
       var updated = await client.auth.updateUser({ password: pw.value });
       if (updated.error) throw { error: updated.error };
